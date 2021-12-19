@@ -1,10 +1,13 @@
-use std::{convert::{From, TryFrom}, future::Future};
+use std::{
+    convert::{From, TryFrom},
+    future::Future,
+};
 
 use rss::{Channel, Item};
 
 use crate::error::{CrabError, CrabResult};
 
-pub trait Parser<P> {
+pub trait Parse<P> {
     type Output;
     type Future: Future<Output = Self::Output>;
 
@@ -14,7 +17,7 @@ pub trait Parser<P> {
 #[derive(Debug)]
 pub struct ReqwestParser;
 
-impl Parser<CrabResult<reqwest::Response>> for ReqwestParser {
+impl Parse<CrabResult<reqwest::Response>> for ReqwestParser {
     type Output = CrabResult<RssChannel>;
     type Future = impl Future<Output = Self::Output>;
 
@@ -71,7 +74,11 @@ impl From<Channel> for RssChannel {
     fn from(channel: Channel) -> Self {
         Self {
             title: channel.title,
-            entries: channel.items.into_iter().filter_map(|item| item.try_into().ok()).collect(),
+            entries: channel
+                .items
+                .into_iter()
+                .filter_map(|item| item.try_into().ok())
+                .collect(),
         }
     }
 }

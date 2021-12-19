@@ -1,6 +1,6 @@
 use crabnews::{
     fetcher::{Fetch, ReqwestFetcher, Resource},
-    parser::{Parser, ReqwestParser},
+    parser::{Parse, ReqwestParser},
 };
 
 #[tokio::main]
