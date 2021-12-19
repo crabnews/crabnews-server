@@ -1,12 +1,10 @@
-use std::fmt::{Display, Formatter, self};
-
+use std::fmt::{self, Display, Formatter};
 
 pub type CrabResult<T> = Result<T, CrabError>;
 
-
 #[derive(Debug, thiserror::Error)]
 pub enum CrabError {
-    FetchError(#[from] reqwest::Error)
+    FetchError(#[from] reqwest::Error),
 }
 
 impl Display for CrabError {

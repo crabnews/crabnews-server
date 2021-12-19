@@ -1,5 +1,4 @@
-use std::fmt::Debug;
-use std::future::Future;
+use std::{fmt::Debug, future::Future};
 
 use futures::future::join_all;
 
