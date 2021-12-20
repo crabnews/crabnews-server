@@ -1,0 +1,12 @@
+version: '3'
+services:
+  postgres:
+    container_name: crab-pg
+    image: postgres:latest
+    restart: always
+    environment:
+      - POSTGRES_USER=ferris
+      - POSTGRES_PASSWORD=igotsomenews
+      - POSTGRES_DB=newsstand
+    ports:
+      - '5432:5432'
