@@ -1,11 +1,13 @@
-use std::{
-    convert::{From, TryFrom},
-    future::Future,
-};
+use std::future::Future;
 
+use futures::future::join_all;
 use rss::{Channel, Item};
+use uuid::Uuid;
 
-use crate::error::{CrabError, CrabResult};
+use crate::{
+    error::{CrabError, CrabResult},
+    subscription::{RssChannel, RssEntry},
+};
 
 pub trait Parse<P> {
     type Output;
@@ -14,45 +16,48 @@ pub trait Parse<P> {
     fn parse(item: P) -> Self::Future;
 }
 
+struct Response(reqwest::Response);
+
 #[derive(Debug)]
 pub struct ReqwestParser;
 
-impl Parse<CrabResult<reqwest::Response>> for ReqwestParser {
+impl Parse<Response> for ReqwestParser {
     type Output = CrabResult<RssChannel>;
     type Future = impl Future<Output = Self::Output>;
 
-    fn parse(item: CrabResult<reqwest::Response>) -> Self::Future {
+    fn parse(item: Response) -> Self::Future {
+        let item = item.0;
         async {
-            match item {
-                Ok(response) => {
-                    try {
-                        let status = response.status();
-                        println!("status: {:?}", status);
-                        let bytes = response.bytes().await?;
-                        let rss = Channel::read_from(&bytes[..])?;
-                        rss.into()
-                    }
-                }
-                Err(_err) => {
-                    todo!("Retry policy not implemented yet");
-                }
+            try {
+                let status = item.status();
+                println!("status: {:?}", status);
+                let bytes = item.bytes().await?;
+                let rss = Channel::read_from(&bytes[..])?;
+                rss.into()
             }
         }
     }
 }
 
-#[derive(Debug)]
-pub struct RssChannel {
-    pub title: String,
-    pub entries: Vec<RssEntry>,
-}
+// impl Parse<Vec<CrabResult<reqwest::Response>>> for ReqwestParser {
+//     type Output = Vec<CrabResult<RssChannel>>;
+//     type Future = impl Future<Output = Self::Output>;
 
-#[derive(Debug)]
-pub struct RssEntry {
-    pub title: String,
-    pub link: String,
-    pub description: Option<String>,
-    pub date: Option<String>,
+//     fn parse(items: Vec<CrabResult<reqwest::Response>>) -> Self::Future {
+//         async { join_all(items.into_iter().map(ReqwestParser::parse)).await }
+//     }
+// }
+impl<I, T, P> Parse<I> for P
+where
+    P: Parse<T>,
+    I: Iterator<Item = T>,
+{
+    type Output = Vec<P::Output>;
+    type Future = impl Future<Output = Self::Output>;
+
+    fn parse(items: I) -> Self::Future {
+        async { join_all(items.into_iter().map(P::parse)).await }
+    }
 }
 
 impl TryFrom<Item> for RssEntry {
@@ -61,6 +66,7 @@ impl TryFrom<Item> for RssEntry {
     fn try_from(entry: Item) -> Result<Self, Self::Error> {
         try {
             Self {
+                uuid: Uuid::new_v4(),
                 title: entry.title.expect(""),
                 link: entry.link.expect(""),
                 description: entry.description,
@@ -73,6 +79,7 @@ impl TryFrom<Item> for RssEntry {
 impl From<Channel> for RssChannel {
     fn from(channel: Channel) -> Self {
         Self {
+            uuid: Uuid::new_v4(),
             title: channel.title,
             entries: channel
                 .items
